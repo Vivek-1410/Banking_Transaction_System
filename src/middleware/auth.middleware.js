@@ -47,6 +47,10 @@ async function systemUserAuthMiddleware(req, res, next) {
             })
         }
 
+        req.user = user
+
+        return next()
+
     } catch (err) {
         return res.status(401).json({
             message: "Unauthorized access, token is invalid"

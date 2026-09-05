@@ -415,96 +415,218 @@ async function createTransactionController(req, res) {
 
 async function createInitialFundsTransactionController(req, res) {
 
-    const {toAccount, amount, idempotencyKey} = req.body;
-
-    if(!toAccount || !amount || !idempotencyKey) {
-        return res.status(400).json({
-            message: "toAccount, amount and idempotencyKey are required fields"
-        })
-    }
-
-    const toUserAccount = await accountModel.findOne({_id: toAccount}).populate("user", "email name");
-
-    if(!toUserAccount) {
-        return res.status(400).json({
-            message: "Invalid toAccount"
-        })
-    }
-
-    const fromUserAccount = await accountModel.findOne({systemAccount: true, user: req.user._id}).populate("user", "email name");
-
-    if(!fromUserAccount) {
-        return res.status(400).json({
-            message: "System account not found for the user"
-        })
-    }
-
-    const session = await mongoose.startSession();
+    console.log("\n========== INITIAL FUNDS START ==========");
 
     try {
-        session.startTransaction();
-        const transaction = await transactionModel.create([{
-            fromAccount: fromUserAccount._id,
-            toAccount: toUserAccount._id,   
-            amount,
-            idempotencyKey,
-            status: "PENDING"
-        }], {session});
 
-        const creditLedgerEntry = await ledgerModel.create({
-            account: toUserAccount._id,
-            amount,
-            transaction: transaction[0]._id,
-            type: "CREDIT"
-        }, {session});  
+        // 1. Request body
+        console.log("STEP 1: Request body:", req.body);
 
-        const debitLedgerEntry = await ledgerModel.create({
-            account: fromUserAccount._id,
-            amount,
-            transaction: transaction[0]._id,
-            type: "DEBIT"
-        }, {session});      
+        const { toAccount, amount, idempotencyKey } = req.body;
 
-        transaction[0].status = "COMPLETED";
-        await transaction[0].save({session});
+        if (!toAccount || !amount || !idempotencyKey) {
+            console.log("ERROR: Missing required fields");
 
-        await session.commitTransaction();
+            return res.status(400).json({
+                message: "toAccount, amount and idempotencyKey are required fields"
+            });
+        }
 
-        const senderMail = fromUserAccount.user.email;
-        const receiverMail = toUserAccount.user.email;
+        console.log("STEP 2: Request validation passed");
 
-        await emailService.sendTransactionEmail(
-            receiverMail,
-            toUserAccount.user.name,
-            amount,
-            fromUserAccount._id
-        );
 
-        await emailService.sendTransactionEmail(
-            senderMail,
-            fromUserAccount.user.name,
-            amount,
-            toUserAccount._id
-        );
+        // 2. Receiver account
+        console.log("STEP 3: Finding receiver account...");
 
-        return res.status(201).json({
-            message: "Initial funds transaction completed successfully",
-            transaction: transaction[0],
-            debitLedgerEntry,
-            creditLedgerEntry
-        }); 
+        const toUserAccount = await accountModel
+            .findOne({ _id: toAccount })
+            .populate("user", "email name");
+
+        console.log("STEP 4: Receiver account:", toUserAccount);
+
+        if (!toUserAccount) {
+            console.log("ERROR: Receiver account not found");
+
+            return res.status(400).json({
+                message: "Invalid toAccount"
+            });
+        }
+
+
+        // 3. System account
+        console.log("STEP 5: Finding system account...");
+        console.log("Current authenticated user:", req.user);
+
+        const fromUserAccount = await accountModel
+            .findOne({
+                systemAccount: true,
+                user: req.user._id
+            })
+            .populate("user", "email name");
+
+        console.log("STEP 6: System account:", fromUserAccount);
+
+        if (!fromUserAccount) {
+            console.log("ERROR: System account not found");
+
+            return res.status(400).json({
+                message: "System account not found for the user"
+            });
+        }
+
+
+        // 4. Start MongoDB session
+        console.log("STEP 7: Starting MongoDB session...");
+
+        const session = await mongoose.startSession();
+
+        console.log("STEP 8: Session created");
+
+        try {
+
+            session.startTransaction();
+
+            console.log("STEP 9: MongoDB transaction started");
+
+
+            // 5. Create transaction
+            console.log("STEP 10: Creating transaction...");
+
+            const transaction = new transactionModel({
+                fromAccount: fromUserAccount._id,
+                toAccount: toUserAccount._id,
+                amount,
+                idempotencyKey,
+                status: "PENDING"
+            });
+
+            console.log("STEP 11: Transaction object created:", transaction);
+
+
+            // 6. Credit receiver
+            console.log("STEP 12: Creating CREDIT ledger entry...");
+
+            const creditLedgerEntry = await ledgerModel.create(
+                [{
+                    account: toUserAccount._id,
+                    amount,
+                    transaction: transaction._id,
+                    type: "CREDIT"
+                }],
+                { session }
+            );
+
+            console.log("STEP 13: CREDIT ledger created:", creditLedgerEntry);
+
+
+            // 7. Debit system account
+            console.log("STEP 14: Creating DEBIT ledger entry...");
+
+            const debitLedgerEntry = await ledgerModel.create(
+                [{
+                    account: fromUserAccount._id,
+                    amount,
+                    transaction: transaction._id,
+                    type: "DEBIT"
+                }],
+                { session }
+            );
+
+            console.log("STEP 15: DEBIT ledger created:", debitLedgerEntry);
+
+
+            // 8. Save transaction
+            console.log("STEP 16: Marking transaction COMPLETED...");
+
+            transaction.status = "COMPLETED";
+
+            await transaction.save({ session });
+
+            console.log("STEP 17: Transaction saved");
+
+
+            // 9. Commit
+            console.log("STEP 18: Committing MongoDB transaction...");
+
+            await session.commitTransaction();
+
+            console.log("STEP 19: MongoDB transaction COMMITTED");
+
+
+            // 10. Email
+            console.log("STEP 20: Sending receiver email...");
+
+            const senderMail = fromUserAccount.user.email;
+            const receiverMail = toUserAccount.user.email;
+
+            await emailService.sendTransactionEmail(
+                receiverMail,
+                toUserAccount.user.name,
+                amount,
+                fromUserAccount._id
+            );
+
+            console.log("STEP 21: Receiver email sent");
+
+
+            console.log("STEP 22: Sending sender email...");
+
+            await emailService.sendTransactionEmail(
+                senderMail,
+                fromUserAccount.user.name,
+                amount,
+                toUserAccount._id
+            );
+
+            console.log("STEP 23: Sender email sent");
+
+
+            // 11. Response
+            console.log("STEP 24: Sending response");
+
+            return res.status(201).json({
+                message: "Initial funds transaction completed successfully",
+                transaction,
+                debitLedgerEntry,
+                creditLedgerEntry
+            });
+
+        } catch (error) {
+
+            console.error("\n❌ TRANSACTION ERROR:");
+            console.error(error);
+            console.error("Message:", error.message);
+            console.error("Stack:", error.stack);
+
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+                console.log("MongoDB transaction aborted");
+            }
+
+            return res.status(500).json({
+                message: "Initial funds transaction failed",
+                error: error.message
+            });
+
+        } finally {
+
+            await session.endSession();
+
+            console.log("MongoDB session ended");
+        }
 
     } catch (error) {
-        await session.abortTransaction();
-        console.error("Initial funds transaction failed:", error);
+
+        console.error("\n❌ CONTROLLER ERROR:");
+        console.error(error);
+        console.error("Message:", error.message);
+        console.error("Stack:", error.stack);
+
         return res.status(500).json({
-            message: "Initial funds transaction failed",
+            message: "Controller error",
             error: error.message
         });
-    }  
-
-
-
+    }
 }
 
 
