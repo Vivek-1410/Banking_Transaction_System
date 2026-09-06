@@ -70,7 +70,8 @@ The system models real-world money transfers using **double-entry bookkeeping**,
                          ┌────────────────────┐
                          │   Email Service    │
                          └────────────────────┘
-Core Design
+```
+**Core Design**
 
 The system does not store the account balance directly.
 
@@ -87,7 +88,7 @@ Balance   7,500
 
 This makes the ledger the source of truth for account balances.
 
-Transaction Flow
+**Transaction Flow**
 
 A normal user-to-user transfer follows this flow:
 
@@ -126,11 +127,11 @@ Every successful transfer creates two ledger entries.
 
 For example, User A sends ₹1,000 to User B:
 
-User A Account
+**User A Account
     DEBIT   ₹1,000
 
 User B Account
-    CREDIT  ₹1,000
+    CREDIT  ₹1,000**
 
 Both entries reference the same transaction.
 
@@ -146,7 +147,7 @@ MongoDB Transaction
 
 The debit, credit, and transaction status update happen inside a single MongoDB session.
 
-START TRANSACTION
+**START TRANSACTION
 
     Create Transaction (PENDING)
 
@@ -160,7 +161,7 @@ COMMIT
 
 If any database operation fails:
 
-ROLLBACK
+ROLLBACK**
 
 Therefore, the system avoids states such as:
 
@@ -171,7 +172,7 @@ Idempotency
 
 Each transaction requires a unique:
 
-idempotencyKey
+**idempotencyKey**
 
 If the same request is sent multiple times:
 
@@ -209,7 +210,7 @@ Initial Funds
 
 New accounts can receive their initial funds through a dedicated system account.
 
-System Account
+**System Account
       │
       │ DEBIT
       ▼
@@ -217,7 +218,7 @@ User Account
       │
       │ CREDIT
       ▼
-   Balance
+   Balance**
 
 The system account is identified using:
 
@@ -230,7 +231,7 @@ User Account   → CREDIT
 
 This keeps initial funds inside the same transaction and ledger architecture instead of directly modifying balances.
 
-Security & Validation
+**Security & Validation**
 
 The API validates:
 
@@ -285,7 +286,7 @@ Transaction
  ├── createdAt
  └── updatedAt
 
-Possible transaction states:
+**Possible transaction states:**
 
 PENDING
 COMPLETED
@@ -301,7 +302,7 @@ Ledger
  ├── transaction
  └── type
 
-Ledger types:
+**Ledger types:**
 
 CREDIT
 DEBIT
@@ -428,8 +429,8 @@ Node.js + Express
   ▼
 MongoDB
 Key Engineering Concepts
-
-This project demonstrates:
+**
+This project demonstrates:**
 
 REST API design
 JWT authentication
