@@ -1,7 +1,7 @@
 const userModel = require("../models/user.model")
 const jwt = require("jsonwebtoken")
 const emailService = require("../services/email.service")
-const blackListModel = require("../models/blacklist.model")
+const blackListModel = require("../models/blackList.model")
 
 const userRegisterController = async (req, res) => {
     const {email, password, name} = req.body
