@@ -1,4 +1,5 @@
 const userModel = require("../models/user.model")
+const blackListModel = require("../models/blacklist.model")
 
 const jwt = require("jsonwebtoken")
 
@@ -8,6 +9,14 @@ async function authMiddleware(req, res, next) {
     if(!token) {
         return res.status(401).json({
             message: "Unauthorized access, token is missing"
+        })
+    }
+
+    const isBlacklisted = await blackListModel.findOne({ token })
+
+    if(isBlacklisted) {
+        return res.status(401).json({
+            message: "Unauthorized access, token is blacklisted"
         })
     }
 

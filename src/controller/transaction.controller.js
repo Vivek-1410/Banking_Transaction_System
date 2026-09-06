@@ -242,6 +242,18 @@ async function createTransactionController(req, res) {
             const debitLedgerEntry =
                 debitLedgerArray[0];
 
+            // await (() => {
+            //     return new Promise((resolve, reject) => {
+            //         setTimeout(() => {
+            //             console.log(
+            //                 "Simulating a delay before creating CREDIT ledger..."
+            //             );
+            //             resolve();
+            //         }, 1000);   
+            // })()
+
+
+
 
             console.log("STEP 10: Creating CREDIT ledger...");
 
